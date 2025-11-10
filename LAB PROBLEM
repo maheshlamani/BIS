@@ -1,0 +1,76 @@
+import random
+import string
+from collections import Counter
+
+# Load English bigram frequencies (simplified)
+ENGLISH_BIGRAMS = {
+    'TH': 2.71, 'HE': 2.33, 'IN': 2.03, 'ER': 1.78, 'AN': 1.61,
+    'RE': 1.41, 'ND': 1.32, 'AT': 1.27, 'ON': 1.25, 'NT': 1.17
+}
+
+# Sample encrypted text (monoalphabetic substitution)
+cipher_text = "WKH TXLFN EURZQ IRA MXPSV RYHU WKH ODCB GRJ"
+
+# Generate a random key (permutation of alphabet)
+def random_key():
+    return ''.join(random.sample(string.ascii_uppercase, 26))
+
+# Apply key to decrypt text
+def decrypt(text, key):
+    table = str.maketrans(string.ascii_uppercase, key)
+    return text.translate(table)
+
+# Fitness function: score based on bigram frequency
+def fitness(decrypted):
+    decrypted = decrypted.replace(" ", "")
+    bigrams = [decrypted[i:i+2] for i in range(len(decrypted)-1)]
+    score = sum(ENGLISH_BIGRAMS.get(bigram, 0) for bigram in bigrams)
+    return score
+
+# Crossover: combine two keys
+def crossover(k1, k2):
+    child = [''] * 26
+    used = set()
+    for i in range(26):
+        if random.random() < 0.5:
+            child[i] = k1[i]
+            used.add(k1[i])
+    for i in range(26):
+        if child[i] == '':
+            for c in k2:
+                if c not in used:
+                    child[i] = c
+                    used.add(c)
+                    break
+    return ''.join(child)
+
+# Mutation: swap two letters
+def mutate(key, rate=0.1):
+    key = list(key)
+    for _ in range(int(rate * 26)):
+        i, j = random.sample(range(26), 2)
+        key[i], key[j] = key[j], key[i]
+    return ''.join(key)
+
+# Genetic Algorithm
+def genetic_decrypt(cipher_text, generations=50, pop_size=5):
+    population = [random_key() for _ in range(pop_size)]
+    for gen in range(generations):
+        scored = [(fitness(decrypt(cipher_text, k)), k) for k in population]
+        scored.sort(reverse=True)
+        best_score, best_key = scored[0]
+        print(f"Gen {gen}: Best score = {best_score}")
+        if best_score > 50:  # arbitrary threshold
+            break
+        selected = [k for _, k in scored[:pop_size//2]]
+        children = []
+        while len(children) < pop_size:
+            p1, p2 = random.sample(selected, 2)
+            child = mutate(crossover(p1, p2))
+            children.append(child)
+        population = children
+    return decrypt(cipher_text, best_key)
+
+# Run the algorithm
+decrypted_text = genetic_decrypt(cipher_text)
+print("Decrypted Text:", decrypted_text)
