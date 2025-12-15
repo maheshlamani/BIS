@@ -1,0 +1,76 @@
+import random
+import math
+
+# -----------------------------
+# Objective function (minimize)
+# -----------------------------
+def fitness(x):
+    # Sphere function
+    return sum([xi**2 for xi in x])
+
+# -----------------------------
+# Levy flight function
+# -----------------------------
+def levy_flight(Lambda=1.5):
+    # Generate a step from a Levy distribution
+    sigma = (math.gamma(1 + Lambda) * math.sin(math.pi * Lambda / 2) /
+             (math.gamma((1 + Lambda) / 2) * Lambda * 2**((Lambda - 1)/2))) ** (1 / Lambda)
+    u = random.gauss(0, sigma)
+    v = random.gauss(0, 1)
+    step = u / abs(v)**(1 / Lambda)
+    return step
+
+# -----------------------------
+# Cuckoo Search Algorithm
+# -----------------------------
+def cuckoo_search(n_nests=25, n_iterations=50, pa=0.25, n_dim=2, lower=-10, upper=10):
+    # Initialize nests randomly
+    nests = [[random.uniform(lower, upper) for _ in range(n_dim)] for _ in range(n_nests)]
+    fitness_nests = [fitness(nest) for nest in nests]
+
+    # Find the current best
+    best_index = fitness_nests.index(min(fitness_nests))
+    best_nest = nests[best_index][:]
+
+    for iter in range(n_iterations):
+        # Generate new solutions via Levy flights
+        for i in range(n_nests):
+            step = levy_flight()
+            new_nest = [x + step * random.uniform(-1, 1) for x in nests[i]]
+            # Keep within bounds
+            new_nest = [max(min(x, upper), lower) for x in new_nest]
+
+            f_new = fitness(new_nest)
+            if f_new < fitness_nests[i]:
+                nests[i] = new_nest
+                fitness_nests[i] = f_new
+
+        # Abandon some nests and replace with new random solutions
+        for i in range(n_nests):
+            if random.random() < pa:
+                nests[i] = [random.uniform(lower, upper) for _ in range(n_dim)]
+                fitness_nests[i] = fitness(nests[i])
+
+        # Update the global best
+        best_index = fitness_nests.index(min(fitness_nests))
+        best_nest = nests[best_index][:]
+       
+        # Print progress (IDLE-friendly)
+        print(f"Iteration {iter+1}, Best Fitness = {fitness_nests[best_index]:.6f}")
+
+    return best_nest, fitness(best_nest)
+
+# -----------------------------
+# Run Cuckoo Search
+# -----------------------------
+best_solution, best_fitness = cuckoo_search(
+    n_nests=20,
+    n_iterations=50,
+    pa=0.25,
+    n_dim=2,
+    lower=-10,
+    upper=10
+)
+
+print("\nBest Solution:", best_solution)
+print("Best Fitness:", best_fitness)
